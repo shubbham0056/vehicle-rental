@@ -57,7 +57,7 @@ function initSocket() {
   const script = document.createElement("script");
   script.src = "https://cdn.socket.io/4.7.5/socket.io.min.js";
   script.onload = () => {
-    _socket = io("http://localhost:5000");
+    _socket = io("https://rentwheels-api.onrender.com");
 
     // Get userId from JWT payload
     try {

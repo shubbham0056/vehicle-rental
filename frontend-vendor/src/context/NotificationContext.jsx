@@ -22,7 +22,7 @@ export function NotificationProvider({ children }) {
   useEffect(() => {
     if (!user?.token) return
 
-    const socket = io('http://localhost:5000', {
+    const socket = io('https://rentwheels-api.onrender.com', {
       auth: { token: user.token },
     })
 
