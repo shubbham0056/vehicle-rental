@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Complete Payment — RentWheels</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="logo" onclick="location.href='index.html'">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+    RentWheels<span class="logo-dot">.</span>
+  </div>
+</nav>
+
+<div class="section" style="max-width:480px;">
+
+  <!-- Loading state -->
+  <div id="loadingState" style="text-align:center;padding:4rem 0;">
+    <p style="color:var(--muted);">Loading booking details...</p>
+  </div>
+
+  <!-- Payment card -->
+  <div id="paymentCard" style="display:none;">
+    <div class="section-header">
+      <div class="eyebrow">Secure Checkout</div>
+      <h2>Complete your payment</h2>
+    </div>
+
+    <div class="form-card" style="margin-bottom:1rem;">
+      <div class="summary-vehicle">
+        <div class="v-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 17H3a2 2 0 01-2-2V9a2 2 0 012-2h1l3-4h8l3 4h1a2 2 0 012 2v6a2 2 0 01-2 2h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="17.5" r="2.5"/></svg>
+        </div>
+        <div class="v-info">
+          <h4 id="vehicleName">—</h4>
+          <p id="bookingRef" style="color:var(--muted);font-size:0.8rem;"></p>
+        </div>
+      </div>
+
+      <div class="summary-row">
+        <span>Booking period</span>
+        <span id="bookingDates">—</span>
+      </div>
+      <div class="summary-row">
+        <span>Pickup location</span>
+        <span id="pickupLoc">—</span>
+      </div>
+      <div class="summary-row total">
+        <span>Total amount</span>
+        <span id="totalAmount">—</span>
+      </div>
+    </div>
+
+    <button id="payBtn" class="btn btn-primary" style="width:100%;padding:0.85rem;font-size:1rem;" onclick="startPayment()">
+      Pay Now
+    </button>
+    <p style="text-align:center;font-size:0.75rem;color:var(--muted);margin-top:0.75rem;">
+      🔒 Secured by Razorpay
+    </p>
+  </div>
+
+  <!-- Already paid -->
+  <div id="alreadyPaid" style="display:none;text-align:center;padding:3rem 0;">
+    <div style="width:56px;height:56px;background:#dcfce7;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;">
+      <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem;">Already Paid</h3>
+    <p style="color:var(--muted);font-size:0.875rem;margin-bottom:1.5rem;">This booking has already been paid for.</p>
+    <button class="btn btn-primary btn-sm" onclick="location.href='my-bookings.html'">View My Bookings</button>
+  </div>
+
+  <!-- Success state -->
+  <div id="successState" style="display:none;text-align:center;padding:3rem 0;">
+    <div style="width:56px;height:56px;background:#dcfce7;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;">
+      <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem;">Payment Successful!</h3>
+    <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.5rem;">Your booking is now confirmed.</p>
+    <p id="paymentIdDisplay" style="color:var(--muted);font-size:0.75rem;margin-bottom:1.5rem;"></p>
+    <button class="btn btn-primary btn-sm" onclick="location.href='my-bookings.html'">View My Bookings</button>
+  </div>
+
+  <!-- Error state -->
+  <div id="errorState" style="display:none;text-align:center;padding:3rem 0;">
+    <div style="width:56px;height:56px;background:#fee2e2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;">
+      <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="#dc2626" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </div>
+    <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem;">Something went wrong</h3>
+    <p id="errorMsg" style="color:var(--muted);font-size:0.875rem;margin-bottom:1.5rem;"></p>
+    <button class="btn btn-outline btn-sm" onclick="location.href='my-bookings.html'">Back to Bookings</button>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="js/app.js"></script>
+<script>
+  const bookingId = new URLSearchParams(location.search).get("bookingId");
+  let orderData = null;
+
+  function show(id) {
+    ["loadingState","paymentCard","alreadyPaid","successState","errorState"]
+      .forEach(s => document.getElementById(s).style.display = s === id ? "" : "none");
+  }
+
+  async function loadBooking() {
+    if (!bookingId) { show("errorState"); document.getElementById("errorMsg").textContent = "Invalid payment link."; return; }
+    if (!isLoggedIn()) { location.href = "login.html"; return; }
+
+    try {
+      const res = await apiFetch(`/api/payments/create-order`, {
+        method: "POST",
+        body: JSON.stringify({ bookingId }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (data.msg === "Booking is already paid") { show("alreadyPaid"); return; }
+        show("errorState");
+        document.getElementById("errorMsg").textContent = data.msg || "Could not load booking.";
+        return;
+      }
+
+      orderData = data;
+
+      // Fetch booking details for display
+      const bRes = await apiFetch(`/api/bookings/my`);
+      const bookings = await bRes.json();
+      const booking = bookings.find(b => b._id === bookingId);
+
+      document.getElementById("vehicleName").textContent = data.vehicle;
+      document.getElementById("bookingRef").textContent = "Booking ID: BK-" + bookingId.slice(-6).toUpperCase();
+      document.getElementById("totalAmount").textContent = formatINR(data.amount / 100);
+
+      if (booking) {
+        const from = new Date(booking.startTime).toLocaleDateString("en-US", { day:"numeric", month:"short" });
+        const to   = new Date(booking.endTime).toLocaleDateString("en-US", { day:"numeric", month:"short", year:"numeric" });
+        document.getElementById("bookingDates").textContent = `${from} → ${to}`;
+        document.getElementById("pickupLoc").textContent = booking.pickupLocation || "—";
+      }
+
+      show("paymentCard");
+    } catch {
+      show("errorState");
+      document.getElementById("errorMsg").textContent = "Could not connect to server.";
+    }
+  }
+
+  async function startPayment() {
+    if (!orderData) return;
+    const user = getUser();
+
+    const options = {
+      key:         orderData.keyId,
+      amount:      orderData.amount,
+      currency:    orderData.currency,
+      name:        "RentWheels",
+      description: `Booking for ${orderData.vehicle}`,
+      order_id:    orderData.orderId,
+      prefill: {
+        name:  user?.name || "",
+        email: user?.email || "",
+      },
+      theme: { color: "#2563eb" },
+      handler: async function (response) {
+        document.getElementById("payBtn").disabled = true;
+        document.getElementById("payBtn").textContent = "Verifying...";
+        try {
+          const res = await apiFetch("/api/payments/verify", {
+            method: "POST",
+            body: JSON.stringify({
+              razorpay_order_id:   response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature:  response.razorpay_signature,
+              bookingId,
+            }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            document.getElementById("paymentIdDisplay").textContent = `Payment ID: ${response.razorpay_payment_id}`;
+            show("successState");
+          } else {
+            show("errorState");
+            document.getElementById("errorMsg").textContent = data.msg || "Payment verification failed.";
+          }
+        } catch {
+          show("errorState");
+          document.getElementById("errorMsg").textContent = "Could not verify payment. Please contact support.";
+        }
+      },
+    };
+
+    const rzp = new Razorpay(options);
+    rzp.on("payment.failed", () => {
+      show("errorState");
+      document.getElementById("errorMsg").textContent = "Payment failed. Please try again.";
+    });
+    rzp.open();
+  }
+
+  loadBooking();
+</script>
+</body>
+</html>

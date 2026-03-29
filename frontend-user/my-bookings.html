@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Bookings — RentWheels</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="logo" onclick="location.href='index.html'">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+    RentWheels<span class="logo-dot">.</span>
+  </div>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="vehicles.html">Vehicles</a></li>
+    <li><a href="my-bookings.html" class="active">My Bookings</a></li>
+  </ul>
+  <div class="nav-actions">
+    <button class="btn btn-ghost" onclick="openModal('loginModal')">Sign in</button>
+    <button class="btn btn-primary" onclick="openModal('signupModal')">Get Started</button>
+  </div>
+</nav>
+
+<!-- LOGIN MODAL -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal">
+    <div class="modal-title">Sign in to your account</div>
+    <div class="form-group" style="margin-bottom:1rem;"><label>Email address</label><input type="email" placeholder="you@example.com" /></div>
+    <div class="form-group"><label>Password</label><input type="password" placeholder="Enter your password" /></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-sm" onclick="closeModal('loginModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="handleLogin()">Sign in</button>
+    </div>
+  </div>
+</div>
+
+<!-- SIGNUP MODAL -->
+<div class="modal-overlay" id="signupModal">
+  <div class="modal">
+    <div class="modal-title">Create your account</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:0.75rem;">
+      <div class="form-group"><label>First name</label><input type="text" placeholder="John" /></div>
+      <div class="form-group"><label>Last name</label><input type="text" placeholder="Doe" /></div>
+    </div>
+    <div class="form-group" style="margin-bottom:0.75rem;"><label>Email address</label><input type="email" placeholder="you@example.com" /></div>
+    <div class="form-group"><label>Password</label><input type="password" placeholder="Create a password" /></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-sm" onclick="closeModal('signupModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="handleSignup()">Create account</button>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-header">
+    <div class="eyebrow">Account</div>
+    <h2>My bookings</h2>
+  </div>
+
+  <!-- FILTER TABS -->
+  <div class="filters-bar">
+    <button class="filter-chip active" data-status="all">All</button>
+    <button class="filter-chip" data-status="confirmed">Confirmed</button>
+    <button class="filter-chip" data-status="pending">Pending</button>
+    <button class="filter-chip" data-status="completed">Completed</button>
+    <button class="filter-chip" data-status="cancelled">Cancelled</button>
+  </div>
+
+  <div class="bookings-list" id="bookingsList"></div>
+</div>
+
+<!-- CANCEL MODAL -->
+<div class="modal-overlay" id="cancelModal">
+  <div class="modal">
+    <div class="modal-title">Cancel this booking?</div>
+    <p style="color:var(--muted); font-size:0.875rem; margin-bottom:0.25rem;">
+      You are about to cancel booking <strong id="cancelId" style="color:var(--text);"></strong>.
+    </p>
+    <p style="color:var(--muted); font-size:0.875rem;">This action cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-sm" onclick="closeModal('cancelModal')">Keep booking</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmCancel()">Cancel booking</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-logo">RentWheels.</div>
+    <p>© 2025 RentWheels. All rights reserved.</p>
+    <div style="display:flex; gap:1.5rem;"><a href="#">Privacy</a><a href="#">Terms</a></div>
+  </div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/app.js"></script>
+<script>
+  let activeStatus = "all";
+  let cancelTarget = null;
+
+  const carSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 17H3a2 2 0 01-2-2V9a2 2 0 012-2h1l3-4h8l3 4h1a2 2 0 012 2v6a2 2 0 01-2 2h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="17.5" r="2.5"/></svg>`;
+
+  let bookings = [];
+
+  async function fetchAndRender() {
+    const token = getToken();
+    if (!token) {
+      document.getElementById("bookingsList").innerHTML = `
+        <div class="empty-state">
+          <h3>Please sign in</h3>
+          <p>You need to be signed in to view your bookings.</p>
+          <button class="btn btn-primary btn-sm" style="margin-top:1rem;" onclick="openModal('loginModal')">Sign in</button>
+        </div>`;
+      return;
+    }
+    try {
+      const res = await apiFetch("/api/bookings/my");
+      const data = await res.json();
+      bookings = res.ok ? data : [];
+    } catch { bookings = []; }
+    renderBookings();
+  }
+
+  function renderBookings() {
+    const list = activeStatus === "all" ? bookings : bookings.filter(b => b.status.toLowerCase() === activeStatus);
+
+    if (!list.length) {
+      document.getElementById("bookingsList").innerHTML = `
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <h3>No bookings found</h3>
+          <p>You have no ${activeStatus === "all" ? "" : activeStatus + " "}bookings yet.</p>
+          <button class="btn btn-primary btn-sm" style="margin-top:1rem;" onclick="location.href='vehicles.html'">Browse vehicles</button>
+        </div>`;
+      return;
+    }
+
+    document.getElementById("bookingsList").innerHTML = list.map(b => {
+      const vName = b.vehicleId?.name || "Vehicle";
+      const vType = b.vehicleId?.type || "";
+      const status = b.status.toLowerCase();
+      const from = new Date(b.startTime).toLocaleDateString("en-US", { day:"numeric", month:"short", year:"numeric" });
+      const to   = new Date(b.endTime).toLocaleDateString("en-US", { day:"numeric", month:"short", year:"numeric" });
+      const bookingRef = "BK-" + b._id.slice(-6).toUpperCase();
+      return `
+        <div class="booking-item">
+          <div class="b-icon">${carSVG}</div>
+          <div class="b-info">
+            <h4>${vName} <span class="status-pill ${status}">${b.status}</span></h4>
+            <p>Booking ID: ${bookingRef} &nbsp;&middot;&nbsp; ${b.pickupLocation || "—"}</p>
+            <div class="b-dates">
+              <span>Pickup: ${from}</span>
+              <span>Return: ${to}</span>
+            </div>
+          </div>
+          <div class="b-actions">
+            <span class="b-total">${formatINR(b.totalPrice)}</span>
+            ${status === "active" && b.paymentStatus !== "paid" ? `<button class="btn btn-primary btn-sm" onclick="location.href='payment.html?bookingId=${b._id}'">Pay Now</button>` : ""}
+            ${b.paymentStatus === "paid" ? `<span class="status-pill confirmed" style="font-size:0.7rem;">Paid</span>` : ""}
+            ${status === "pending" ? `<button class="btn btn-danger btn-sm" onclick="openCancel('${b._id}')">Cancel</button>` : ""}
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  document.querySelectorAll(".filter-chip").forEach(chip =>
+    chip.addEventListener("click", () => {
+      document.querySelectorAll(".filter-chip").forEach(c => c.classList.remove("active"));
+      chip.classList.add("active");
+      activeStatus = chip.dataset.status;
+      renderBookings();
+    })
+  );
+
+  function openCancel(id) {
+    cancelTarget = id;
+    document.getElementById("cancelId").textContent = "BK-" + id.slice(-6).toUpperCase();
+    document.getElementById("cancelModal").classList.add("open");
+  }
+
+  function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+
+  async function confirmCancel() {
+    const token = getToken();
+    await fetch(`/api/bookings/${cancelTarget}/status`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status: "Cancelled" })
+    });
+    closeModal("cancelModal");
+    showToast("Booking cancelled.", "info");
+    await fetchAndRender();
+  }
+
+  document.querySelectorAll(".modal-overlay").forEach(m =>
+    m.addEventListener("click", e => { if (e.target === m) m.classList.remove("open"); })
+  );
+
+  fetchAndRender();
+</script>
+</body>
+</html>

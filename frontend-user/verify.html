@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Email Verification — RentWheels</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    body { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); }
+    .verify-card {
+      background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+      box-shadow: var(--shadow-md); padding: 3rem 2rem;
+      width: 100%; max-width: 420px; text-align: center;
+    }
+    .icon-circle {
+      width: 64px; height: 64px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem;
+    }
+    .icon-circle.success { background: #dcfce7; }
+    .icon-circle.error   { background: #fee2e2; }
+    .icon-circle.loading { background: #eff6ff; }
+    h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; }
+    p  { color: var(--muted); font-size: 0.875rem; margin-bottom: 1.5rem; }
+  </style>
+</head>
+<body>
+<div class="verify-card" id="card">
+  <div class="icon-circle loading">
+    <svg class="spin" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5">
+      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+    </svg>
+  </div>
+  <h2>Verifying your email...</h2>
+  <p>Please wait a moment.</p>
+</div>
+
+<style>
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { animation: spin 1s linear infinite; }
+</style>
+
+<script>
+  const token = new URLSearchParams(location.search).get("token");
+  const card  = document.getElementById("card");
+
+  function showSuccess() {
+    card.innerHTML = `
+      <div class="icon-circle success">
+        <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <h2 style="color:#16a34a;">Email Verified!</h2>
+      <p>Your account is now active. You can sign in.</p>
+      <a href="login.html" class="btn btn-primary" style="display:inline-block;">Sign in now</a>`;
+  }
+
+  function showError(msg) {
+    card.innerHTML = `
+      <div class="icon-circle error">
+        <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#dc2626" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </div>
+      <h2 style="color:#dc2626;">Verification Failed</h2>
+      <p>${msg}</p>
+      <a href="index.html" class="btn btn-outline" style="display:inline-block;">Go to Home</a>`;
+  }
+
+  async function verify() {
+    if (!token) { showError("Invalid verification link."); return; }
+
+    try {
+      const res  = await fetch(`/api/auth/verify/${token}`);
+      // backend now returns JSON
+      const data = await res.json();
+      if (res.ok) showSuccess();
+      else showError(data.msg || "Verification failed. The link may have expired.");
+    } catch {
+      showError("Could not connect to server. Please try again.");
+    }
+  }
+
+  verify();
+</script>
+</body>
+</html>
